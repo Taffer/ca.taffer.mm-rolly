@@ -15,38 +15,11 @@ Support "any" reasonable dice rolling request:
 * xdy/z - divide the result by z
 * xdy<1 - discards the lowest roll (so 4d6<1 would return a value between 3 and 18)
 
-(
-    (?P<num_dice>
-        [0-9]+
-    )?
-    d
-)?
-(?P<num_sides>
-    [0-9\%]+
-)
-(
-    (?P<modifier>
-        [+-/<]
-    )
-    (?P<modifier_value>
-        [0-9]+
-    )
-)?
-
 Nerd combos:
 
 * dnd - same as 3d6 six times
 * dnd+ - same as 4d6<1 six times
 * open - Rolemaster style open-ended roll
-
-(
-    (?P<combo_name>
-        (d[n&]d|open)
-    )
-    (?P<combo_flag>
-        \+
-    )?
-)
 
 Number of dice per roll will be limited to 100 so malicious users can't flood
 the channel with dice output.
@@ -104,7 +77,7 @@ def do_xdy(rng, dice, sides, modifier=None, modifier_value=None):
     result = []
     total = 0
     minimum = sides + 1
-    for i in range(dice):
+    for _ in range(dice):
         value = rng.randint(1, sides)
 
         total += value
@@ -170,15 +143,17 @@ def do_combo(rng, combo):
         else:
             # House rule: Roll 4d6, throw out low die.
             combo_result = [do_roll(rng, '4d6<1') for x in range(6)]
+
+        for i in combo_result:
+            i['original'] = name
+
     elif name.lower() in ['open']:
         # Roll a Rolemaster "open-ended" d%.
         #
         # TODO: Check to make sure these don't go negative if you roll <= 5;
         # that may have been a house rule.
-        if flag is not None:
-            output['warning'] = 'Flag ignored for open-ended rolls.'
-
         combo_result = do_roll(rng, 'd%')
+        combo_result['original'] = 'open'
         this_roll = combo_result['rolls'][0]
 
         while this_roll >= 95:
@@ -187,6 +162,9 @@ def do_combo(rng, combo):
 
             combo_result['rolls'].append(this_roll)
             combo_result['sum'] += this_roll
+
+        if flag is not None:
+            combo_result['warning'] = 'Flag ignored for open-ended rolls.'
 
     return combo_result
 
@@ -255,7 +233,7 @@ def do_roll(rng, roll):
             # You're doing it wrong.
             output['rolls'].append((roll, 'Incomprehensible roll.'))
 
-    if len(output['rolls']) < 1:
+    if not output['rolls']:
         output['error'] = True
         output['message'] = 'That accomplished nothing.'
 
@@ -264,6 +242,9 @@ def do_roll(rng, roll):
 
 def test():
     ''' Try a bunch of combos.
+
+    Proper tests would check the output of these, which is possible because
+    we're using the same seed every time here.
     '''
     simple = ['1', '2', '3', '4', '6', '8', '10', '12', '20', '%', '100', '65536']
     combos = ['dnd', 'd&d', 'dnd+', 'd&d+', 'open']
