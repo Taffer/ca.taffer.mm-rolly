@@ -4,6 +4,6 @@ var manifest = struct {
 	Id      string
 	Version string
 }{
-	Id:      "com.mattermost.sample-plugin",
-	Version: "0.0.1",
+	Id:      "ca.taffer.mm-rolly",
+	Version: "1.0.0",
 }
