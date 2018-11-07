@@ -1,8 +1,8 @@
 {
-    "id": "com.mattermost.sample-plugin",
-    "name": "Sample Plugin",
-    "description": "This plugin serves as a starting point for writing a Mattermost plugin.",
-    "version": "0.0.1",
+    "id": "ca.taffer.mm-rolly",
+    "name": "Rolly",
+    "description": "Roll one or more dice.",
+    "version": "1.0.0",
     "server": {
         "executables": {
             "linux-amd64": "server/dist/plugin-linux-amd64",
@@ -10,12 +10,9 @@
             "windows-amd64": "server/dist/plugin-windows-amd64.exe"
         }
     },
-    "webapp": {
-        "bundle_path": "webapp/dist/main.js"
-    },
     "settings_schema": {
-        "header": "",
-        "footer": "",
+        "header": "GitHub repository: [Taffer/ca.taffer.mm-rolly](https://github.com/Taffer/ca.taffer.mm-rolly)",
+        "footer": "Please report issues in the GitHub repo. All code is [MIT licensed](https://github.com/Taffer/ca.taffer.mm-rolly/blob/develop/LICENSE). Full credits can be found in the (README)(https://github.com/Taffer/ca.taffer.mm-rolly/blob/develop/README.md).",
         "settings": []
     }
 }
