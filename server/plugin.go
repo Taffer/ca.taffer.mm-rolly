@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -17,15 +16,11 @@ import (
 type RollyPlugin struct {
 	plugin.MattermostPlugin
 
-	// configurationLock synchronizes access to the configuration.
-	configurationLock sync.RWMutex
-
-	// configuration is the active plugin configuration. Consult getConfiguration and
-	// setConfiguration for usage.
-	configuration *configuration
-
 	// URL router/dispatcher.
 	router *mux.Router
+
+	// Is this active?
+	active bool
 }
 
 // -----------------------------------------------------------------------------
@@ -37,6 +32,8 @@ const (
 	iconFile   string = "if_die_1055072.png"
 	iconPath   string = pluginPath + "/" + iconFile
 	iconURI    string = "/" + iconPath
+
+	trigger string = "rolly"
 )
 
 // -----------------------------------------------------------------------------
@@ -45,22 +42,27 @@ const (
 
 // OnActivate - Register the plugin.
 func (p *RollyPlugin) OnActivate() error {
+	p.active = true
+
 	// Handle requests for the icon file.
-	p.router = mux.NewRouter()
-	p.router.HandleFunc("/"+iconFile, func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, iconPath)
-	})
+	if p.router == nil {
+		p.router = mux.NewRouter()
+		p.router.HandleFunc("/"+iconFile, func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, iconPath)
+		})
+	}
 
 	// Register our command handler.
-	return p.API.RegisterCommand(&model.Command{
-		Trigger:          p.configuration.trigger,
-		Description:      "Roll one or more dice. With combos!",
-		DisplayName:      "Rolly",
-		AutoComplete:     true,
-		AutoCompleteDesc: "🎲 Roll the dice! Use `/" + p.configuration.trigger + " help` for usage.",
-		AutoCompleteHint: "6 d10 2d4+2 and other modifiers.",
-		IconURL:          iconURI,
-	})
+	err := p.API.RegisterCommand(p.GetCommand())
+
+	return err
+}
+
+// OnDeactivate - No more work...
+func (p *RollyPlugin) OnDeactivate() error {
+	p.active = false
+
+	return nil
 }
 
 // ServeHTTP - Handle HTTP requests.
@@ -75,7 +77,7 @@ func (p *RollyPlugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *htt
 
 // ExecuteCommand - Handle commands.
 func (p *RollyPlugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*model.CommandResponse, *model.AppError) {
-	if strings.HasPrefix(args.Command, "/"+p.configuration.trigger) == false {
+	if strings.HasPrefix(args.Command, "/"+trigger) == false {
 		// It's not for us.
 		return nil, nil
 	}
@@ -115,6 +117,23 @@ func (p *RollyPlugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs)
 }
 
 // -----------------------------------------------------------------------------
+// Utility functions.
+// -----------------------------------------------------------------------------
+
+// GetCommand - Return the Command to register.
+func (p *RollyPlugin) GetCommand() *model.Command {
+	return &model.Command{
+		Trigger:          trigger,
+		Description:      "Roll one or more dice. With combos!",
+		DisplayName:      "Rolly",
+		AutoComplete:     true,
+		AutoCompleteDesc: "🎲 Roll the dice! Use `/" + trigger + " help` for usage.",
+		AutoCompleteHint: "6 d10 2d4+2 and other modifiers.",
+		IconURL:          iconURI,
+	}
+}
+
+// -----------------------------------------------------------------------------
 // Different commands the roller knows.
 // -----------------------------------------------------------------------------
 
@@ -139,6 +158,8 @@ If *x* isn't specified, it defaults to 1.`
 		ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL,
 		Text:         helpText,
 		Props:        props,
+		Username:     "Rolly",
+		IconURL:      iconURI,
 	}, nil
 }
 
@@ -156,7 +177,7 @@ func (p *RollyPlugin) SeedRng() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-// GetRandom - Gets a random number from [0, n).
-func (p *RollyPlugin) GetRandom(n int) int {
+// GetRandomIntn - Gets a random number from [0, n).
+func (p *RollyPlugin) GetRandomIntn(n int) int {
 	return rand.Intn(n)
 }

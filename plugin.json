@@ -13,14 +13,6 @@
     "settings_schema": {
         "header": "GitHub repository: [Taffer/ca.taffer.mm-rolly](https://github.com/Taffer/ca.taffer.mm-rolly)",
         "footer": "Please report issues in the GitHub repo. All code is [MIT licensed](https://github.com/Taffer/ca.taffer.mm-rolly/blob/develop/LICENSE). Full credits can be found in the [README](https://github.com/Taffer/ca.taffer.mm-rolly/blob/develop/README.md).",
-        "settings": [
-            {
-                "key": "trigger",
-                "display_name": "Trigger",
-                "type": "text",
-                "help_text": "The trigger to use for rolling dice. Default is `/rolly`.",
-                "default": "/rolly"
-            }
-        ]
+        "settings": []
     }
 }
