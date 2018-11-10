@@ -33,7 +33,8 @@ const (
 	iconPath   string = pluginPath + "/" + iconFile
 	iconURI    string = "/" + iconPath
 
-	trigger string = "rolly"
+	trigger    string = "rolly"
+	pluginName string = "Rolly"
 )
 
 // -----------------------------------------------------------------------------
@@ -44,7 +45,8 @@ const (
 func (p *RollyPlugin) OnActivate() error {
 	p.active = true
 
-	// Handle requests for the icon file.
+	// Handle requests for the icon file.  Maybe this nil check isn't necessary
+	// and OnActivate() is only called once per lifetime?
 	if p.router == nil {
 		p.router = mux.NewRouter()
 		p.router.HandleFunc("/"+iconFile, func(w http.ResponseWriter, r *http.Request) {
@@ -92,14 +94,30 @@ func (p *RollyPlugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs)
 		return nil, userErr
 	}
 
-	text := fmt.Sprintf("Command was: %s…", args.Command)
+	responseText := fmt.Sprintf("%s throws the dice…", user.Nickname)
 
-	attachments := []*model.SlackAttachment{
-		{
-			Text:     "Attachment: " + text,
-			Fallback: fmt.Sprintf("Fallback: %s rolled…", user.GetFullName()),
-			ThumbURL: iconURI,
-		},
+	rolls := strings.Fields(args.Command)[1:]
+	if len(rolls) > 10 {
+		rolls = rolls[0:11]
+		responseText += fmt.Sprintf("\n⚠️ %d rolls requested; I'm only doing 10.", len(rolls))
+	}
+
+	attachments := []*model.SlackAttachment{}
+	if len(rolls) == 0 {
+		responseText += fmt.Sprintf("\n🚫 That accomplished nothing.")
+	} else {
+		rollText := "Results:"
+		for idx := 0; idx < len(rolls); idx++ {
+			rollText += fmt.Sprintf("\n🎲 %d: %q", idx, rolls[idx])
+		}
+
+		attachments = []*model.SlackAttachment{
+			{
+				Text:     rollText,
+				Fallback: "🎲",
+				ThumbURL: iconURI,
+			},
+		}
 	}
 
 	props := map[string]interface{}{
@@ -110,9 +128,10 @@ func (p *RollyPlugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs)
 	return &model.CommandResponse{
 		ResponseType: model.COMMAND_RESPONSE_TYPE_IN_CHANNEL,
 		Attachments:  attachments,
-		Username:     user.Username,
-		Text:         "Response: " + text,
+		Username:     pluginName,
+		Text:         responseText,
 		Props:        props,
+		IconURL:      iconURI,
 	}, nil
 }
 
@@ -125,7 +144,7 @@ func (p *RollyPlugin) GetCommand() *model.Command {
 	return &model.Command{
 		Trigger:          trigger,
 		Description:      "Roll one or more dice. With combos!",
-		DisplayName:      "Rolly",
+		DisplayName:      pluginName,
 		AutoComplete:     true,
 		AutoCompleteDesc: "🎲 Roll the dice! Use `/" + trigger + " help` for usage.",
 		AutoCompleteHint: "6 d10 2d4+2 and other modifiers.",
@@ -147,7 +166,11 @@ func (p *RollyPlugin) GetHelp() (*model.CommandResponse, *model.AppError) {
 * *x*d*y*/*z* - divide the result by *z*
 * *x*d*y*<1 - discards the lowest roll (so 4d6<1 would return a value between 3 and 18)
 
-If *x* isn't specified, it defaults to 1.`
+If *x* isn't specified, it defaults to 1. Also supports nerd combos:
+
+* dnd - same as 3d6 six times (standard D&D or Pathfinder)
+* dnd+ - same as 4d6<1 six times (common house rule for D&D or Pathfinder)
+* open - roll d%, if it's >= 95, roll again and add, repeating if necessary`
 
 	props := map[string]interface{}{
 		"from_webhook":  "true",
