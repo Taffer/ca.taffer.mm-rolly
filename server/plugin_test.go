@@ -8,9 +8,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TestServeHTTP - Test the HTTP response.
 func TestServeHTTP(t *testing.T) {
 	assert := assert.New(t)
-	plugin := Plugin{}
+	plugin := RollyPlugin{}
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("GET", "/", nil)
 
@@ -22,5 +23,5 @@ func TestServeHTTP(t *testing.T) {
 	assert.Nil(err)
 	bodyString := string(bodyBytes)
 
-	assert.Equal("Hello, world!", bodyString)
+	assert.Equal("Please log in.\n", bodyString)
 }
