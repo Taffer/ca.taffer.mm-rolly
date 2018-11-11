@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,6 +24,11 @@ type RollyPlugin struct {
 
 	// Is this active?
 	active bool
+
+	// Dice rolling patterns.
+	simplePattern *regexp.Regexp
+	comboPattern  *regexp.Regexp
+	rollPattern   *regexp.Regexp
 }
 
 // -----------------------------------------------------------------------------
@@ -33,7 +41,7 @@ const (
 	iconPath   string = pluginPath + "/" + iconFile
 	iconURI    string = "/" + iconPath
 
-	trigger    string = "rolly"
+	trigger    string = "roll"
 	pluginName string = "Rolly"
 )
 
@@ -42,8 +50,18 @@ const (
 // -----------------------------------------------------------------------------
 
 // OnActivate - Register the plugin.
+//
+// Is this called once when the plugin is loaded? Repeatedly? Whenever you
+// switch from "Deactivated" to "Activated"?
 func (p *RollyPlugin) OnActivate() error {
 	p.active = true
+
+	// Dice rolling patterns.
+	//
+	// See prototype.py for more readable (?) versions of these.
+	p.simplePattern = regexp.MustCompile(`^(?P<num_sides>[0-9\%]+)$`)
+	p.comboPattern = regexp.MustCompile(`(?i)^((?P<combo_name>(d[n&]d\+?|open)))$`)
+	p.rollPattern = regexp.MustCompile(`(?i)^((?P<num_dice>[0-9]+)?d)?(?P<num_sides>[0-9\%]+)((?P<modifier>[+-/<])(?P<modifier_value>[0-9]+))?$`)
 
 	// Handle requests for the icon file.  Maybe this nil check isn't necessary
 	// and OnActivate() is only called once per lifetime?
@@ -106,9 +124,85 @@ func (p *RollyPlugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs)
 	if len(rolls) == 0 {
 		responseText += fmt.Sprintf("\n🚫 That accomplished nothing.")
 	} else {
-		rollText := "Results:"
+		rollText := "🎲 "
 		for idx := 0; idx < len(rolls); idx++ {
-			rollText += fmt.Sprintf("\n🎲 %d: %q", idx, rolls[idx])
+			if p.simplePattern.MatchString(rolls[idx]) == true {
+				// Simple roll (number only).
+				matches := FindNamedSubstrings(p.simplePattern, rolls[idx])
+
+				_, total := p.RollDice(1, matches["num_sides"], "", 0)
+
+				rollText += fmt.Sprintf("\"1d%v\" = **%d**", rolls[idx], total)
+
+			} else if p.comboPattern.MatchString(rolls[idx]) == true {
+				// C-C-C-C-COMBO roll.
+				matches := FindNamedSubstrings(p.comboPattern, rolls[idx])
+
+				comboName := strings.ToLower(matches["combo_name"])
+				switch comboName {
+				case "dnd", "d&d":
+					// D&D/Pathfinder: 3d6 for each stat.
+					rollText += "D&D standard:"
+
+					for idx := 0; idx < 6; idx++ {
+						dice, total := p.RollDice(3, "6", "", 0)
+						rollText += fmt.Sprintf("\n* 3d6 %v = **%d**", dice, total)
+					}
+				case "dnd+", "d&d+":
+					// Common D&D/Pathfinder house rule: 4d6<1 for each stat.
+					rollText += "D&D variant:"
+
+					for idx := 0; idx < 6; idx++ {
+						dice, total := p.RollDice(4, "6", "<", 1)
+						rollText += fmt.Sprintf("\n* 4d6<1 %v = **%d**", dice, total)
+					}
+				case "open":
+					// Rolemaster open-ended d%.
+					dice, total := p.RollDice(1, "%", "", 0)
+					allDice := dice
+					for total >= 95 {
+						dice, total = p.RollDice(1, "%", "", 0)
+						allDice = append(allDice, dice[0])
+					}
+
+					sort.Ints(allDice)
+					total = sum(allDice)
+					rollText += fmt.Sprintf("Rolemaster open-ended: 1d%% %v = **%d**", allDice, total)
+				default:
+					rollText += fmt.Sprintf("Combo **%v** isn't implemented yet, sorry.", rolls[idx])
+				}
+
+			} else if p.rollPattern.MatchString(rolls[idx]) == true {
+				// Typical roll (number of dice, sides, optional modifiers).
+				matches := FindNamedSubstrings(p.rollPattern, rolls[idx])
+
+				numDice, err := strconv.Atoi(matches["num_dice"])
+				if err != nil {
+					// This is optional, so it might be empty.
+					numDice = 1
+				}
+				if numDice > 100 {
+					rollText += fmt.Sprintf("%v is too many, rolling 100.", numDice)
+					numDice = 100
+				}
+				if numDice < 1 {
+					rollText += fmt.Sprintf("%v is too few, rolling 1.", numDice)
+					numDice = 1
+				}
+				sides := matches["num_sides"] // Left as string for d% rolls.
+				modifier := matches["modifier"]
+				modifierValue, err := strconv.Atoi(matches["modifier_value"])
+
+				dice, total := p.RollDice(numDice, sides, modifier, modifierValue)
+
+				if numDice == 1 {
+					rollText += fmt.Sprintf("%q = **%d**", rolls[idx], total)
+				} else {
+					rollText += fmt.Sprintf("%q %v = **%d**", rolls[idx], dice, total)
+				}
+			} else {
+				rollText += fmt.Sprintf("I have no idea what to do with %q.", rolls[idx])
+			}
 		}
 
 		attachments = []*model.SlackAttachment{
@@ -133,23 +227,6 @@ func (p *RollyPlugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs)
 		Props:        props,
 		IconURL:      iconURI,
 	}, nil
-}
-
-// -----------------------------------------------------------------------------
-// Utility functions.
-// -----------------------------------------------------------------------------
-
-// GetCommand - Return the Command to register.
-func (p *RollyPlugin) GetCommand() *model.Command {
-	return &model.Command{
-		Trigger:          trigger,
-		Description:      "Roll one or more dice. With combos!",
-		DisplayName:      pluginName,
-		AutoComplete:     true,
-		AutoCompleteDesc: "🎲 Roll the dice! Use `/" + trigger + " help` for usage.",
-		AutoCompleteHint: "6 d10 2d4+2 and other modifiers.",
-		IconURL:          iconURI,
-	}
 }
 
 // -----------------------------------------------------------------------------
@@ -181,9 +258,51 @@ If *x* isn't specified, it defaults to 1. Also supports nerd combos:
 		ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL,
 		Text:         helpText,
 		Props:        props,
-		Username:     "Rolly",
+		Username:     pluginName,
 		IconURL:      iconURI,
 	}, nil
+}
+
+// -----------------------------------------------------------------------------
+// Utility functions.
+// -----------------------------------------------------------------------------
+
+// GetCommand - Return the Command to register.
+func (p *RollyPlugin) GetCommand() *model.Command {
+	return &model.Command{
+		Trigger:          trigger,
+		Description:      "Roll one or more dice. With combos!",
+		DisplayName:      pluginName,
+		AutoComplete:     true,
+		AutoCompleteDesc: "🎲 Roll the dice! Use `/" + trigger + " help` for usage.",
+		AutoCompleteHint: "6 d10 2d4+2 and other modifiers.",
+		IconURL:          iconURI,
+	}
+}
+
+// Is there already a way to do this?
+func sum(values []int) int {
+	total := 0
+	for idx := 0; idx < len(values); idx++ {
+		total += values[idx]
+	}
+
+	return total
+}
+
+// FindNamedSubstrings - Return a map of named matches.
+func FindNamedSubstrings(re *regexp.Regexp, candidate string) map[string]string {
+	found := make(map[string]string)
+
+	values := re.FindStringSubmatch(candidate)
+	keys := re.SubexpNames()
+
+	// Why do you start indexing keys at 1 instead of 0?
+	for idx := 1; idx < len(keys); idx++ {
+		found[keys[idx]] = values[idx]
+	}
+
+	return found
 }
 
 // -----------------------------------------------------------------------------
@@ -195,12 +314,59 @@ If *x* isn't specified, it defaults to 1. Also supports nerd combos:
 // for this sort of application!
 // -----------------------------------------------------------------------------
 
+// RollDice - Roll {dice}d{sides}{modifier}{modifier_value}.
+//
+// Returns an array of rolls, and the (modified) total.
+func (p *RollyPlugin) RollDice(dice int, sides string, modifier string, modifierValue int) ([]int, int) {
+	var rolls []int
+
+	// Valid dieSides are digits, or %.
+	var dieSides int
+	if sides == "%" {
+		dieSides = 100
+	} else {
+		dieSides, _ = strconv.Atoi(sides)
+		if dieSides < 2 {
+			dieSides = 2
+		}
+	}
+
+	for idx := 0; idx < dice; idx++ {
+		rolls = append(rolls, p.GetRandom(dieSides))
+	}
+
+	sort.Ints(rolls)
+	total := sum(rolls)
+
+	// Most of the supported modifiers are trivial.
+	switch modifier {
+	case "+":
+		total += modifierValue
+	case "-":
+		total -= modifierValue
+	case "/":
+		total /= modifierValue
+	case "<":
+		// Currently only the lowest is thrown out.
+		if len(rolls) > 1 {
+			total = sum(rolls[1:])
+		}
+	}
+
+	// Clamp rolls to a minimum of 1.
+	if total < 1 {
+		total = 1
+	}
+
+	return rolls, total
+}
+
 // SeedRng - Seed the random number generator.
 func (p *RollyPlugin) SeedRng() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-// GetRandomIntn - Gets a random number from [0, n).
-func (p *RollyPlugin) GetRandomIntn(n int) int {
-	return rand.Intn(n)
+// GetRandom - Gets a random number from [1, n].
+func (p *RollyPlugin) GetRandom(n int) int {
+	return rand.Intn(n) + 1
 }
