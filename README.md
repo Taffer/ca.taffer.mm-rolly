@@ -17,6 +17,7 @@ rolling request:
 
 * *x*d*y* or *x*D*y* to roll a *y* sided die *x* times
 * modifiers: *x*d*y*+*z* (supported modifiers: +, -, x or *, /)
+* exploding dice (for every max value, roll and add): *x*d*y*!
 * *x*d% - same as *x*d100
 * *x*dF - roll
   [FUDGE](https://en.wikipedia.org/wiki/Fudge_%28role-playing_game_system%29)
@@ -26,8 +27,8 @@ rolling request:
 * *x*d*y*>*z* - keeps the best *z* rolls (so 4d6>1 would return a value
   between 1 and 6)
 
-If *x* isn't specified, it defaults to 1. If you specify a modifier, you must
-also specify a *z* value.
+If *x* isn't specified, it defaults to 1. If *y* is less than 2, it defaults
+to 2. If you specify a modifier, you must also specify a *z* value.
 
 **Maybe the "open" combo should be a modifier.**
 
