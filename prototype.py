@@ -33,39 +33,48 @@ import re
 import secrets
 import sys
 
-SIMPLE_PATTERN = re.compile(
-    r'''^(?P<num_sides>
-        [0-9\%]+
-    )$''', re.IGNORECASE | re.VERBOSE)
+''' Simple pattern:
 
-COMBO_PATTERN = re.compile(
-    r'''^(
-        (?P<combo_name>
-            (d[n&]d|open)
-        )
-        (?P<combo_flag>
-            \+
-        )?
-    )$''', re.IGNORECASE | re.VERBOSE)
+^(?P<num_sides>
+    [0-9\%]+
+)$
+'''
+SIMPLE_PATTERN = re.compile(r'''^(?P<num_sides>[0-9\%]+)$''', re.IGNORECASE)
 
-ROLL_PATTERN = re.compile(
-    r'''^(
-        (?P<num_dice>
-            [0-9]+
-        )?
-    d)?
-    (?P<num_sides>
-        [0-9\%]+
+''' Combo pattern:
+
+^(
+    (?P<combo_name>
+        (d[n&]d|open)
     )
-    (
-        (?P<modifier>
-            [+-/<]
-        )
-        (?P<modifier_value>
-            [0-9]+
-        )
-    )?$''',
-    re.IGNORECASE | re.VERBOSE)
+    (?P<combo_flag>
+        \+
+    )?
+)$
+'''
+COMBO_PATTERN = re.compile(r'''^((?P<combo_name>(d[n&]d|open))(?P<combo_flag>\+)?)$''', re.IGNORECASE)
+
+''' Roll pattern:
+
+^(
+    (?P<num_dice>
+        [0-9]+
+    )?
+d)?
+(?P<num_sides>
+    [0-9\%]+
+)
+(
+    (?P<modifier>
+        [+-/<]
+    )
+    (?P<modifier_value>
+        [0-9]+
+    )
+)?$
+'''
+ROLL_PATTERN = re.compile(
+    r'''^((?P<num_dice>[0-9]+)?d)?(?P<num_sides>[0-9\%]+)((?P<modifier>[+-/<])(?P<modifier_value>[0-9]+))?$''', re.IGNORECASE)
 
 
 def do_xdy(rng, dice, sides, modifier=None, modifier_value=None):
