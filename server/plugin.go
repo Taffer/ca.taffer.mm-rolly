@@ -157,12 +157,15 @@ func (p *RollyPlugin) GetHelp() (*model.CommandResponse, *model.AppError) {
 	helpText := `Support "any" [reasonable](https://en.wikipedia.org/wiki/Dice_notation) dice rolling request:
 
 * *x*d*y* or *x*D*y* to roll a *y* sided die *x* times
-* modifiers: *x*d*y*+*z*, *x*d*y*-*z* (with a minimum of 1)
+* modifiers: *x*d*y*+*z* (supported modifiers: +, -, x or *, /)
 * *x*d% - same as *x*d100
-* *x*d*y*/*z* - divide the result by *z*
-* *x*d*y*<1 - discards the lowest roll (so 4d6<1 would return a value between 3 and 18)
+* *x*d*y*<*z* - discards the lowest *z* rolls (so 4d6<1 would return a value
+  between 3 and 18)
 
-If *x* isn't specified, it defaults to 1. Also supports nerd combos:
+If *x* isn't specified, it defaults to 1. If you specify a modifier, you must
+also specify a *z* value.
+
+Supports these nerd combos:
 
 * dnd - same as 3d6 six times (standard D&D or Pathfinder)
 * dnd+ - same as 4d6<1 six times (common house rule for D&D or Pathfinder)
@@ -278,7 +281,7 @@ func (p *RollyPlugin) Init() {
 	// See prototype.py for more readable (?) versions of these.
 	p.simplePattern = regexp.MustCompile(`^(?P<num_sides>[0-9\%]+)$`)
 	p.comboPattern = regexp.MustCompile(`(?i)^((?P<combo_name>(d[n&]d\+?|open)))$`)
-	p.rollPattern = regexp.MustCompile(`(?i)^((?P<num_dice>[0-9]+)?d)?(?P<num_sides>[0-9\%]+)((?P<modifier>[+-/<])(?P<modifier_value>[0-9]+))?$`)
+	p.rollPattern = regexp.MustCompile(`(?i)^((?P<num_dice>[0-9]+)?d)?(?P<num_sides>[0-9\%]+)((?P<modifier>[+-/<x*])(?P<modifier_value>[0-9]+))?$`)
 }
 
 // GetCommand - Return the Command to register.
@@ -376,6 +379,8 @@ func (p *RollyPlugin) RollDice(dice int, sides string, modifier string, modifier
 		total -= modifierValue
 	case "/":
 		total /= modifierValue
+	case "x", "*":
+		total *= modifierValue
 	case "<":
 		// Ignore the lowest modifierValue rolls.
 		cutoff := min(modifierValue, len(rolls)-1)

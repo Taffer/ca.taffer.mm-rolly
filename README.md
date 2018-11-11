@@ -16,19 +16,18 @@ Support "any" [reasonable](https://en.wikipedia.org/wiki/Dice_notation) dice
 rolling request:
 
 * *x*d*y* or *x*D*y* to roll a *y* sided die *x* times
-* modifiers: *x*d*y*+*z*, *x*d*y*-*z* (with a minimum of 1)
+* modifiers: *x*d*y*+*z* (supported modifiers: +, -, x or *, /)
 * *x*d% - same as *x*d100
-* *x*d*y*/*z* - divide the result by *z*
 * *x*d*y*<*z* - discards the lowest *z* rolls (so 4d6<1 would return a value
   between 3 and 18)
 
-If *x* isn't specified, it defaults to 1.
+If *x* isn't specified, it defaults to 1. If you specify a modifier, you must
+also specify a *z* value.
 
 **Maybe the "open" combo should be a modifier.**
 
 Variations not supported yet:
 
-* x or * modifier for multiply
 * > modifier to return the highest rolls; 4d6<1 is the same as 4d6>3
 * dF for FUDGE dice (-1, 0, 1, aka 1d3-2)
 * ! modifier to "explode" (roll and add whenever you get the max die value)
