@@ -23,6 +23,8 @@ rolling request:
   dice
 * *x*d*y*<*z* - discards the lowest *z* rolls (so 4d6<1 would return a value
   between 3 and 18)
+* *x*d*y*>*z* - keeps the best *z* rolls (so 4d6>1 would return a value
+  between 1 and 6)
 
 If *x* isn't specified, it defaults to 1. If you specify a modifier, you must
 also specify a *z* value.

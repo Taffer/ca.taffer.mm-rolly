@@ -46,7 +46,7 @@ const (
 
 	simpleRegex string = `^(?P<num_sides>[0-9\%F]+)$`
 	comboRegex  string = `(?i)^((?P<combo_name>(d[n&]d\+?|open)))$`
-	rollRegex   string = `(?i)^((?P<num_dice>[0-9]+)?d)?(?P<num_sides>[0-9\%F]+)((?P<modifier>[+-/<x*])(?P<modifier_value>[0-9]+))?$`
+	rollRegex   string = `(?i)^((?P<num_dice>[0-9]+)?d)?(?P<num_sides>[0-9\%F]+)((?P<modifier>[+-/<>x*])(?P<modifier_value>[0-9]+))?$`
 )
 
 // -----------------------------------------------------------------------------
@@ -168,6 +168,8 @@ func (p *RollyPlugin) GetHelp() (*model.CommandResponse, *model.AppError) {
   dice
 * *x*d*y*<*z* - discards the lowest *z* rolls (so 4d6<1 would return a value
   between 3 and 18)
+* *x*d*y*>*z* - keeps the best *z* rolls (so 4d6>1 would return a value
+  between 1 and 6)
 
 If *x* isn't specified, it defaults to 1. If you specify a modifier, you must
 also specify a *z* value.
@@ -397,11 +399,20 @@ func (p *RollyPlugin) RollDice(dice int, sides string, modifier string, modifier
 		total /= modifierValue
 	case "x", "*":
 		total *= modifierValue
-	case "<":
-		// Ignore the lowest modifierValue rolls.
+	case "<": // Ignore the lowest modifierValue rolls.
 		cutoff := min(modifierValue, len(rolls)-1)
 
 		total = sum(rolls[cutoff:])
+	case ">": // Keep the best modifierValue rolls.
+		if modifierValue >= len(rolls) {
+			total = sum(rolls)
+		} else if modifierValue < 1 {
+			total = 0
+		} else {
+			cutoff := len(rolls) - modifierValue
+
+			total = sum(rolls[cutoff:])
+		}
 	}
 
 	return rolls, total
