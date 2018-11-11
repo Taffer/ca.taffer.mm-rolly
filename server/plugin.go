@@ -46,7 +46,7 @@ const (
 
 	simpleRegex string = `^(?P<num_sides>[0-9\%F]+)$`
 	comboRegex  string = `(?i)^((?P<combo_name>(d[n&]d\+?|open)))$`
-	rollRegex   string = `(?i)^((?P<num_dice>[0-9]+)?d)?(?P<num_sides>[0-9\%F]+)((?P<modifier>[+-/<>x*])(?P<modifier_value>[0-9]+))?$`
+	rollRegex   string = `(?i)^((?P<num_dice>[0-9]+)?d)?(?P<num_sides>[0-9\%F]+)((?P<modifier>[+-/<>x*!])(?P<modifier_value>[0-9]*))?$`
 )
 
 // -----------------------------------------------------------------------------
@@ -162,6 +162,7 @@ func (p *RollyPlugin) GetHelp() (*model.CommandResponse, *model.AppError) {
 
 * *x*d*y* or *x*D*y* to roll a *y* sided die *x* times
 * modifiers: *x*d*y*+*z* (supported modifiers: +, -, x or *, /)
+* exploding dice (for every max value, roll and add): *x*d*y*!
 * *x*d% - same as *x*d100
 * *x*dF - roll
   [FUDGE](https://en.wikipedia.org/wiki/Fudge_%28role-playing_game_system%29)
@@ -171,8 +172,8 @@ func (p *RollyPlugin) GetHelp() (*model.CommandResponse, *model.AppError) {
 * *x*d*y*>*z* - keeps the best *z* rolls (so 4d6>1 would return a value
   between 1 and 6)
 
-If *x* isn't specified, it defaults to 1. If you specify a modifier, you must
-also specify a *z* value.
+If *x* isn't specified, it defaults to 1. If *y* is less than 2, it defaults
+to 2. If you specify a modifier, you must also specify a *z* value.
 
 Supports these nerd combos:
 
@@ -202,9 +203,13 @@ func (p *RollyPlugin) HandleRoll(rollArg string, rollText string) string {
 		// Simple roll (number only).
 		matches := FindNamedSubstrings(p.simplePattern, rollArg)
 
-		_, total := p.RollDice(1, matches["num_sides"], "", 0)
+		dice, total := p.RollDice(1, matches["num_sides"], "", 0)
 
-		rollText += fmt.Sprintf("\"1d%v\" = **%d**", rollArg, total)
+		if len(dice) == 1 {
+			rollText += fmt.Sprintf("\"1d%v\" = **%d**", rollArg, total)
+		} else {
+			rollText += fmt.Sprintf("%q %v = **%d**", rollArg, dice, total)
+		}
 
 	} else if p.comboPattern.MatchString(rollArg) == true {
 		// C-C-C-C-COMBO roll.
@@ -264,10 +269,13 @@ func (p *RollyPlugin) HandleRoll(rollArg string, rollText string) string {
 		sides := matches["num_sides"] // Left as string for d% rolls.
 		modifier := matches["modifier"]
 		modifierValue, err := strconv.Atoi(matches["modifier_value"])
+		if err != nil {
+			modifierValue = 0 // One wasn't specified. Blame the ! modifier.
+		}
 
 		dice, total := p.RollDice(numDice, sides, modifier, modifierValue)
 
-		if numDice == 1 {
+		if len(dice) == 1 {
 			rollText += fmt.Sprintf("%q = **%d**", rollArg, total)
 		} else {
 			rollText += fmt.Sprintf("%q %v = **%d**", rollArg, dice, total)
@@ -396,7 +404,9 @@ func (p *RollyPlugin) RollDice(dice int, sides string, modifier string, modifier
 			total = 1 // Clamp to 1, unless FUDGE.
 		}
 	case "/":
-		total /= modifierValue
+		if modifierValue > 0 {
+			total /= modifierValue
+		}
 	case "x", "*":
 		total *= modifierValue
 	case "<": // Ignore the lowest modifierValue rolls.
@@ -413,6 +423,30 @@ func (p *RollyPlugin) RollDice(dice int, sides string, modifier string, modifier
 
 			total = sum(rolls[cutoff:])
 		}
+	case "!": // Exploding dice!
+		explode := 0
+		for idx := len(rolls) - 1; idx >= 0; idx-- {
+			if (sides == "F" && rolls[idx] == 1) || rolls[idx] == dieSides {
+				explode++
+			}
+		}
+
+		for idx := 0; idx < explode; idx++ {
+			boom := p.GetRandom(dieSides)
+			if sides == "F" { // FUDGE is a special case.
+				boom -= 2
+				if boom == 1 {
+					explode++
+				}
+			} else { // Normal case.
+				if boom == dieSides {
+					explode++
+				}
+			}
+			rolls = append(rolls, boom)
+		}
+
+		total = sum(rolls)
 	}
 
 	return rolls, total
