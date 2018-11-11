@@ -43,6 +43,10 @@ const (
 
 	trigger    string = "roll"
 	pluginName string = "Rolly"
+
+	simpleRegex string = `^(?P<num_sides>[0-9\%F]+)$`
+	comboRegex  string = `(?i)^((?P<combo_name>(d[n&]d\+?|open)))$`
+	rollRegex   string = `(?i)^((?P<num_dice>[0-9]+)?d)?(?P<num_sides>[0-9\%F]+)((?P<modifier>[+-/<x*])(?P<modifier_value>[0-9]+))?$`
 )
 
 // -----------------------------------------------------------------------------
@@ -159,6 +163,9 @@ func (p *RollyPlugin) GetHelp() (*model.CommandResponse, *model.AppError) {
 * *x*d*y* or *x*D*y* to roll a *y* sided die *x* times
 * modifiers: *x*d*y*+*z* (supported modifiers: +, -, x or *, /)
 * *x*d% - same as *x*d100
+* *x*dF - roll
+  [FUDGE](https://en.wikipedia.org/wiki/Fudge_%28role-playing_game_system%29)
+  dice
 * *x*d*y*<*z* - discards the lowest *z* rolls (so 4d6<1 would return a value
   between 3 and 18)
 
@@ -279,9 +286,9 @@ func (p *RollyPlugin) Init() {
 	// Dice rolling patterns.
 	//
 	// See prototype.py for more readable (?) versions of these.
-	p.simplePattern = regexp.MustCompile(`^(?P<num_sides>[0-9\%]+)$`)
-	p.comboPattern = regexp.MustCompile(`(?i)^((?P<combo_name>(d[n&]d\+?|open)))$`)
-	p.rollPattern = regexp.MustCompile(`(?i)^((?P<num_dice>[0-9]+)?d)?(?P<num_sides>[0-9\%]+)((?P<modifier>[+-/<x*])(?P<modifier_value>[0-9]+))?$`)
+	p.simplePattern = regexp.MustCompile(simpleRegex)
+	p.comboPattern = regexp.MustCompile(comboRegex)
+	p.rollPattern = regexp.MustCompile(rollRegex)
 }
 
 // GetCommand - Return the Command to register.
@@ -357,6 +364,8 @@ func (p *RollyPlugin) RollDice(dice int, sides string, modifier string, modifier
 	var dieSides int
 	if sides == "%" {
 		dieSides = 100
+	} else if sides == "F" {
+		dieSides = 3
 	} else {
 		dieSides, _ = strconv.Atoi(sides)
 		if dieSides < 2 {
@@ -365,7 +374,11 @@ func (p *RollyPlugin) RollDice(dice int, sides string, modifier string, modifier
 	}
 
 	for idx := 0; idx < dice; idx++ {
-		rolls = append(rolls, p.GetRandom(dieSides))
+		value := p.GetRandom(dieSides)
+		if sides == "F" {
+			value -= 2 // FUDGE dice product -1, 0, 1
+		}
+		rolls = append(rolls, value)
 	}
 
 	sort.Ints(rolls)
@@ -377,6 +390,9 @@ func (p *RollyPlugin) RollDice(dice int, sides string, modifier string, modifier
 		total += modifierValue
 	case "-":
 		total -= modifierValue
+		if total < 1 && sides != "F" {
+			total = 1 // Clamp to 1, unless FUDGE.
+		}
 	case "/":
 		total /= modifierValue
 	case "x", "*":
@@ -386,11 +402,6 @@ func (p *RollyPlugin) RollDice(dice int, sides string, modifier string, modifier
 		cutoff := min(modifierValue, len(rolls)-1)
 
 		total = sum(rolls[cutoff:])
-	}
-
-	// Clamp rolls to a minimum of 1.
-	if total < 1 {
-		total = 1
 	}
 
 	return rolls, total

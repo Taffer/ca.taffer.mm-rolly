@@ -18,6 +18,9 @@ rolling request:
 * *x*d*y* or *x*D*y* to roll a *y* sided die *x* times
 * modifiers: *x*d*y*+*z* (supported modifiers: +, -, x or *, /)
 * *x*d% - same as *x*d100
+* *x*dF - roll
+  [FUDGE](https://en.wikipedia.org/wiki/Fudge_%28role-playing_game_system%29)
+  dice
 * *x*d*y*<*z* - discards the lowest *z* rolls (so 4d6<1 would return a value
   between 3 and 18)
 
