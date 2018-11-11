@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -21,6 +22,11 @@ type RollyPlugin struct {
 
 	// Is this active?
 	active bool
+
+	// Dice rolling patterns.
+	simplePattern *regexp.Regexp
+	comboPattern  *regexp.Regexp
+	rollPattern   *regexp.Regexp
 }
 
 // -----------------------------------------------------------------------------
@@ -33,7 +39,7 @@ const (
 	iconPath   string = pluginPath + "/" + iconFile
 	iconURI    string = "/" + iconPath
 
-	trigger    string = "rolly"
+	trigger    string = "rolly" // TODO: Change to "roll" for release.
 	pluginName string = "Rolly"
 )
 
@@ -42,8 +48,18 @@ const (
 // -----------------------------------------------------------------------------
 
 // OnActivate - Register the plugin.
+//
+// Is this called once when the plugin is loaded? Repeatedly? Whenever you
+// switch from "Deactivated" to "Activated"?
 func (p *RollyPlugin) OnActivate() error {
 	p.active = true
+
+	// Dice rolling patterns.
+	//
+	// See prototype.py for more readable (?) versions of these.
+	p.simplePattern = regexp.MustCompile(`(?i:re)^(?P<num_sides>[0-9\%]+)$`)
+	p.comboPattern = regexp.MustCompile(`(?i:re)^((?P<combo_name>(d[n&]d|open))(?P<combo_flag>\+)?)$`)
+	p.rollPattern = regexp.MustCompile(`(?i:re)^((?P<num_dice>[0-9]+)?d)?(?P<num_sides>[0-9\%]+)((?P<modifier>[+-/<])(?P<modifier_value>[0-9]+))?$`)
 
 	// Handle requests for the icon file.  Maybe this nil check isn't necessary
 	// and OnActivate() is only called once per lifetime?
@@ -108,7 +124,15 @@ func (p *RollyPlugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs)
 	} else {
 		rollText := "Results:"
 		for idx := 0; idx < len(rolls); idx++ {
-			rollText += fmt.Sprintf("\n🎲 %d: %q", idx, rolls[idx])
+			if p.simplePattern.MatchString(rolls[idx]) == true {
+				rollText += fmt.Sprintf("\n🎲 SIMPLE: %d: %q", idx, rolls[idx])
+			} else if p.comboPattern.MatchString(rolls[idx]) == true {
+				rollText += fmt.Sprintf("\n🎲 COMBO: %d: %q", idx, rolls[idx])
+			} else if p.rollPattern.MatchString(rolls[idx]) == true {
+				rollText += fmt.Sprintf("\n🎲 ROLL: %d: %q", idx, rolls[idx])
+			} else {
+				rollText += fmt.Sprintf("\n🎲 %d: I have no idea what to do with this: %q", idx, rolls[idx])
+			}
 		}
 
 		attachments = []*model.SlackAttachment{
@@ -181,7 +205,7 @@ If *x* isn't specified, it defaults to 1. Also supports nerd combos:
 		ResponseType: model.COMMAND_RESPONSE_TYPE_EPHEMERAL,
 		Text:         helpText,
 		Props:        props,
-		Username:     "Rolly",
+		Username:     pluginName,
 		IconURL:      iconURI,
 	}, nil
 }
