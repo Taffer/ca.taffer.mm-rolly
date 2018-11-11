@@ -56,12 +56,7 @@ const (
 func (p *RollyPlugin) OnActivate() error {
 	p.active = true
 
-	// Dice rolling patterns.
-	//
-	// See prototype.py for more readable (?) versions of these.
-	p.simplePattern = regexp.MustCompile(`^(?P<num_sides>[0-9\%]+)$`)
-	p.comboPattern = regexp.MustCompile(`(?i)^((?P<combo_name>(d[n&]d\+?|open)))$`)
-	p.rollPattern = regexp.MustCompile(`(?i)^((?P<num_dice>[0-9]+)?d)?(?P<num_sides>[0-9\%]+)((?P<modifier>[+-/<])(?P<modifier_value>[0-9]+))?$`)
+	p.Init()
 
 	// Handle requests for the icon file.  Maybe this nil check isn't necessary
 	// and OnActivate() is only called once per lifetime?
@@ -126,83 +121,7 @@ func (p *RollyPlugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs)
 	} else {
 		rollText := "🎲 "
 		for idx := 0; idx < len(rolls); idx++ {
-			if p.simplePattern.MatchString(rolls[idx]) == true {
-				// Simple roll (number only).
-				matches := FindNamedSubstrings(p.simplePattern, rolls[idx])
-
-				_, total := p.RollDice(1, matches["num_sides"], "", 0)
-
-				rollText += fmt.Sprintf("\"1d%v\" = **%d**", rolls[idx], total)
-
-			} else if p.comboPattern.MatchString(rolls[idx]) == true {
-				// C-C-C-C-COMBO roll.
-				matches := FindNamedSubstrings(p.comboPattern, rolls[idx])
-
-				comboName := strings.ToLower(matches["combo_name"])
-				switch comboName {
-				case "dnd", "d&d":
-					// D&D/Pathfinder: 3d6 for each stat.
-					rollText += "D&D standard:"
-
-					for idx := 0; idx < 6; idx++ {
-						dice, total := p.RollDice(3, "6", "", 0)
-						rollText += fmt.Sprintf("\n* 3d6 %v = **%d**", dice, total)
-					}
-				case "dnd+", "d&d+":
-					// Common D&D/Pathfinder house rule: 4d6<1 for each stat.
-					rollText += "D&D variant:"
-
-					for idx := 0; idx < 6; idx++ {
-						dice, total := p.RollDice(4, "6", "<", 1)
-						rollText += fmt.Sprintf("\n* 4d6<1 %v = **%d**", dice, total)
-					}
-				case "open":
-					// Rolemaster open-ended d%.
-					dice, total := p.RollDice(1, "%", "", 0)
-					allDice := dice
-					for total >= 95 {
-						dice, total = p.RollDice(1, "%", "", 0)
-						allDice = append(allDice, dice[0])
-					}
-
-					sort.Ints(allDice)
-					total = sum(allDice)
-					rollText += fmt.Sprintf("Rolemaster open-ended: 1d%% %v = **%d**", allDice, total)
-				default:
-					rollText += fmt.Sprintf("Combo **%v** isn't implemented yet, sorry.", rolls[idx])
-				}
-
-			} else if p.rollPattern.MatchString(rolls[idx]) == true {
-				// Typical roll (number of dice, sides, optional modifiers).
-				matches := FindNamedSubstrings(p.rollPattern, rolls[idx])
-
-				numDice, err := strconv.Atoi(matches["num_dice"])
-				if err != nil {
-					// This is optional, so it might be empty.
-					numDice = 1
-				}
-				if numDice > 100 {
-					rollText += fmt.Sprintf("%v is too many, rolling 100.", numDice)
-					numDice = 100
-				}
-				if numDice < 1 {
-					rollText += fmt.Sprintf("%v is too few, rolling 1.", numDice)
-					numDice = 1
-				}
-				sides := matches["num_sides"] // Left as string for d% rolls.
-				modifier := matches["modifier"]
-				modifierValue, err := strconv.Atoi(matches["modifier_value"])
-
-				dice, total := p.RollDice(numDice, sides, modifier, modifierValue)
-
-				if numDice == 1 {
-					rollText += fmt.Sprintf("%q = **%d**", rolls[idx], total)
-				} else {
-					rollText += fmt.Sprintf("%q %v = **%d**", rolls[idx], dice, total)
-				}
-			} else {
-				rollText += fmt.Sprintf("I have no idea what to do with %q.", rolls[idx])
-			}
+			rollText = p.HandleRoll(rolls[idx], rollText)
 		}
 
 		attachments = []*model.SlackAttachment{
@@ -263,9 +182,104 @@ If *x* isn't specified, it defaults to 1. Also supports nerd combos:
 	}, nil
 }
 
+// HandleRoll - Handle a rolling command.
+//
+// Returns the adjusted roll output.
+func (p *RollyPlugin) HandleRoll(rollArg string, rollText string) string {
+	if p.simplePattern.MatchString(rollArg) == true {
+		// Simple roll (number only).
+		matches := FindNamedSubstrings(p.simplePattern, rollArg)
+
+		_, total := p.RollDice(1, matches["num_sides"], "", 0)
+
+		rollText += fmt.Sprintf("\"1d%v\" = **%d**", rollArg, total)
+
+	} else if p.comboPattern.MatchString(rollArg) == true {
+		// C-C-C-C-COMBO roll.
+		matches := FindNamedSubstrings(p.comboPattern, rollArg)
+
+		comboName := strings.ToLower(matches["combo_name"])
+		switch comboName {
+		case "dnd", "d&d":
+			// D&D/Pathfinder: 3d6 for each stat.
+			rollText += "D&D standard:"
+
+			for idx := 0; idx < 6; idx++ {
+				dice, total := p.RollDice(3, "6", "", 0)
+				rollText += fmt.Sprintf("\n* 3d6 %v = **%d**", dice, total)
+			}
+		case "dnd+", "d&d+":
+			// Common D&D/Pathfinder house rule: 4d6<1 for each stat.
+			rollText += "D&D variant:"
+
+			for idx := 0; idx < 6; idx++ {
+				dice, total := p.RollDice(4, "6", "<", 1)
+				rollText += fmt.Sprintf("\n* 4d6<1 %v = **%d**", dice, total)
+			}
+		case "open":
+			// Rolemaster open-ended d%.
+			dice, total := p.RollDice(1, "%", "", 0)
+			allDice := dice
+			for total >= 95 {
+				dice, total = p.RollDice(1, "%", "", 0)
+				allDice = append(allDice, dice[0])
+			}
+
+			sort.Ints(allDice)
+			total = sum(allDice)
+			rollText += fmt.Sprintf("Rolemaster open-ended: 1d%% %v = **%d**", allDice, total)
+		default:
+			rollText += fmt.Sprintf("Combo **%v** isn't implemented yet, sorry.", rollArg)
+		}
+
+	} else if p.rollPattern.MatchString(rollArg) == true {
+		// Typical roll (number of dice, sides, optional modifiers).
+		matches := FindNamedSubstrings(p.rollPattern, rollArg)
+
+		numDice, err := strconv.Atoi(matches["num_dice"])
+		if err != nil {
+			// This is optional, so it might be empty.
+			numDice = 1
+		}
+		if numDice > 100 {
+			rollText += fmt.Sprintf("%v is too many, rolling 100.", numDice)
+			numDice = 100
+		}
+		if numDice < 1 {
+			rollText += fmt.Sprintf("%v is too few, rolling 1.", numDice)
+			numDice = 1
+		}
+		sides := matches["num_sides"] // Left as string for d% rolls.
+		modifier := matches["modifier"]
+		modifierValue, err := strconv.Atoi(matches["modifier_value"])
+
+		dice, total := p.RollDice(numDice, sides, modifier, modifierValue)
+
+		if numDice == 1 {
+			rollText += fmt.Sprintf("%q = **%d**", rollArg, total)
+		} else {
+			rollText += fmt.Sprintf("%q %v = **%d**", rollArg, dice, total)
+		}
+	} else {
+		rollText += fmt.Sprintf("I have no idea what to do with %q.", rollArg)
+	}
+
+	return rollText
+}
+
 // -----------------------------------------------------------------------------
 // Utility functions.
 // -----------------------------------------------------------------------------
+
+// Init - Initialize plugin.
+func (p *RollyPlugin) Init() {
+	// Dice rolling patterns.
+	//
+	// See prototype.py for more readable (?) versions of these.
+	p.simplePattern = regexp.MustCompile(`^(?P<num_sides>[0-9\%]+)$`)
+	p.comboPattern = regexp.MustCompile(`(?i)^((?P<combo_name>(d[n&]d\+?|open)))$`)
+	p.rollPattern = regexp.MustCompile(`(?i)^((?P<num_dice>[0-9]+)?d)?(?P<num_sides>[0-9\%]+)((?P<modifier>[+-/<])(?P<modifier_value>[0-9]+))?$`)
+}
 
 // GetCommand - Return the Command to register.
 func (p *RollyPlugin) GetCommand() *model.Command {
@@ -288,6 +302,22 @@ func sum(values []int) int {
 	}
 
 	return total
+}
+
+// Is there already a way to do this?
+func max(x, y int) int {
+	if x > y {
+		return x
+	}
+	return y
+}
+
+// Is there already a way to do this?
+func min(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
 }
 
 // FindNamedSubstrings - Return a map of named matches.
@@ -347,10 +377,10 @@ func (p *RollyPlugin) RollDice(dice int, sides string, modifier string, modifier
 	case "/":
 		total /= modifierValue
 	case "<":
-		// Currently only the lowest is thrown out.
-		if len(rolls) > 1 {
-			total = sum(rolls[1:])
-		}
+		// Ignore the lowest modifierValue rolls.
+		cutoff := min(modifierValue, len(rolls)-1)
+
+		total = sum(rolls[cutoff:])
 	}
 
 	// Clamp rolls to a minimum of 1.

@@ -19,7 +19,8 @@ rolling request:
 * modifiers: *x*d*y*+*z*, *x*d*y*-*z* (with a minimum of 1)
 * *x*d% - same as *x*d100
 * *x*d*y*/*z* - divide the result by *z*
-* *x*d*y*<1 - discards the lowest roll (so 4d6<1 would return a value between 3 and 18)
+* *x*d*y*<*z* - discards the lowest *z* rolls (so 4d6<1 would return a value
+  between 3 and 18)
 
 If *x* isn't specified, it defaults to 1.
 

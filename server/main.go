@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/mattermost/mattermost-server/plugin"
 )
 
@@ -11,5 +14,14 @@ func main() {
 	// This only needs to be done once per instance.
 	rolly.SeedRng()
 
-	plugin.ClientMain(rolly)
+	if len(os.Args) > 1 {
+		// Ad-hoc testing... runs HandleRoll() on command-line args.
+		rolly.Init()
+
+		for idx := 1; idx < len(os.Args); idx++ {
+			fmt.Println(idx, "=", rolly.HandleRoll(os.Args[idx], "Arg: "))
+		}
+	} else {
+		plugin.ClientMain(rolly)
+	}
 }
