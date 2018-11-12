@@ -168,9 +168,71 @@ func TestHandleRoll(t *testing.T) {
 // TestRollDice - Make sure different combinations return correct values.
 func TestRollDice(t *testing.T) {
 	p := initTestPlugin(t)
-	rand.Seed(0) // Make these deterministic.
+	p.Init()
 
-	assert.NotNil(t, p)
+	// Different number of sides.
+	rand.Seed(0) // Make these deterministic.
+	rolls, total := p.RollDice(1, "%", "", 0)
+	assert.EqualValues(t, rolls[0], 75)
+	assert.EqualValues(t, total, 75)
+
+	rolls, total = p.RollDice(1, "F", "", 0)
+	assert.EqualValues(t, rolls[0], -1)
+	assert.EqualValues(t, total, -1)
+
+	rolls, total = p.RollDice(1, "1", "", 0)
+	assert.EqualValues(t, rolls[0], 2)
+	assert.EqualValues(t, total, 2)
+
+	// Different modifiers.
+	rand.Seed(0) // Make these deterministic.
+	rolls, total = p.RollDice(1, "6", "+", 1)
+	assert.EqualValues(t, rolls[0], 1)
+	assert.EqualValues(t, total, 2)
+
+	rolls, total = p.RollDice(1, "6", "-", 6)
+	assert.EqualValues(t, rolls[0], 1)
+	assert.EqualValues(t, total, 1)
+
+	rolls, total = p.RollDice(1, "6", "/", 2)
+	assert.EqualValues(t, rolls[0], 2)
+	assert.EqualValues(t, total, 1)
+
+	rolls, total = p.RollDice(1, "6", "x", 2)
+	assert.EqualValues(t, rolls[0], 5)
+	assert.EqualValues(t, total, 10)
+
+	rand.Seed(0) // Make these deterministic.
+	rolls, total = p.RollDice(2, "6", "<", 1)
+	assert.EqualValues(t, rolls[0], 1)
+	assert.EqualValues(t, rolls[1], 1)
+	assert.EqualValues(t, total, 1)
+
+	rolls, total = p.RollDice(2, "6", ">", 1)
+	assert.EqualValues(t, rolls[0], 2)
+	assert.EqualValues(t, rolls[1], 5)
+	assert.EqualValues(t, total, 5)
+
+	rolls, total = p.RollDice(2, "6", ">", 3)
+	assert.EqualValues(t, rolls[0], 5)
+	assert.EqualValues(t, rolls[1], 6)
+	assert.EqualValues(t, total, 11)
+
+	rolls, total = p.RollDice(2, "6", ">", 0)
+	assert.EqualValues(t, rolls[0], 2)
+	assert.EqualValues(t, rolls[1], 6)
+	assert.EqualValues(t, total, 0)
+
+	// Need to roll these several times before it actually explodes.
+	rand.Seed(0) // Make these deterministic.
+	rolls, total = p.RollDice(1, "F", "!", 0)
+	rolls, total = p.RollDice(1, "F", "!", 0)
+	rolls, total = p.RollDice(1, "F", "!", 0)
+	rolls, total = p.RollDice(1, "F", "!", 0)
+	rolls, total = p.RollDice(1, "F", "!", 0)
+	assert.EqualValues(t, rolls[0], 1)
+	assert.EqualValues(t, rolls[1], 0)
+	assert.EqualValues(t, total, 1)
 }
 
 // TestSeedRng - Seed the default RNG.
