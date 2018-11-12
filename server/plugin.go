@@ -246,6 +246,7 @@ func (p *RollyPlugin) HandleRoll(rollArg string, rollText string) string {
 			total = sum(allDice)
 			rollText += fmt.Sprintf("Rolemaster open-ended: 1d%% %v = **%d**", allDice, total)
 		default:
+			// You can't actually reach this with the current regex.
 			rollText += fmt.Sprintf("Combo **%v** isn't implemented yet, sorry.", rollArg)
 		}
 
@@ -259,11 +260,11 @@ func (p *RollyPlugin) HandleRoll(rollArg string, rollText string) string {
 			numDice = 1
 		}
 		if numDice > 100 {
-			rollText += fmt.Sprintf("%v is too many, rolling 100.", numDice)
+			rollText += fmt.Sprintf("%v is too many, rolling 100.\n", numDice)
 			numDice = 100
 		}
 		if numDice < 1 {
-			rollText += fmt.Sprintf("%v is too few, rolling 1.", numDice)
+			rollText += fmt.Sprintf("%v is too few, rolling 1.\n", numDice)
 			numDice = 1
 		}
 		sides := matches["num_sides"] // Left as string for d% rolls.
@@ -322,14 +323,6 @@ func sum(values []int) int {
 	}
 
 	return total
-}
-
-// Is there already a way to do this?
-func max(x, y int) int {
-	if x > y {
-		return x
-	}
-	return y
 }
 
 // Is there already a way to do this?
