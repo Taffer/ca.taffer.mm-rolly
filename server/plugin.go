@@ -105,13 +105,13 @@ func (p *RollyPlugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs)
 		return p.GetHelp()
 	}
 
-	// Get the user to we can display the right name
-	user, userErr := p.API.GetUser(args.UserId)
+	// Get the user to we can display the right name.
+	userName, userErr := p.GetName(args.UserId)
 	if userErr != nil {
 		return nil, userErr
 	}
 
-	responseText := fmt.Sprintf("%s throws the dice…", user.Nickname)
+	responseText := fmt.Sprintf("%s throws the dice…", userName)
 
 	rolls := strings.Fields(args.Command)[1:]
 	if len(rolls) > 10 {
@@ -313,6 +313,25 @@ func (p *RollyPlugin) GetCommand() *model.Command {
 		AutoCompleteHint: "6 d10 2d4+2 and other modifiers.",
 		IconURL:          iconURI,
 	}
+}
+
+// GetName - What should we call the user?
+func (p *RollyPlugin) GetName(userID string) (string, *model.AppError) {
+	user, userErr := p.API.GetUser(userID)
+	if userErr != nil {
+		return "Error McErrorface", userErr
+	}
+
+	name := user.Nickname
+	if len(name) < 1 {
+		name = user.Username
+
+		if len(name) < 1 {
+			name = user.FirstName + " " + user.LastName
+		}
+	}
+
+	return name, nil
 }
 
 // Is there already a way to do this?
