@@ -166,6 +166,9 @@ func TestHandleRoll(t *testing.T) {
 
 	response = p.HandleRoll("6!", "")
 	assert.EqualValues(t, response, "\"6!\" [6 1] = **7**")
+
+	response = p.HandleRoll("monkey", "")
+	assert.EqualValues(t, response, "I have no idea what to do with this: monkey")
 }
 
 // TestRollDice - Make sure different combinations return correct values.

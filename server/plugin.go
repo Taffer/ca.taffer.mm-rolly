@@ -282,7 +282,7 @@ func (p *RollyPlugin) HandleRoll(rollArg string, rollText string) string {
 			rollText += fmt.Sprintf("%q %v = **%d**", rollArg, dice, total)
 		}
 	} else {
-		rollText += fmt.Sprintf("I have no idea what to do with %q.", rollArg)
+		rollText += fmt.Sprintf("I have no idea what to do with this: %v", rollArg)
 	}
 
 	return rollText
