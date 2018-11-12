@@ -36,8 +36,11 @@ func initTestPlugin(t *testing.T) *RollyPlugin {
 	api.On("RegisterCommand", mock.Anything).Return(nil)
 	api.On("UnregisterCommand", mock.Anything, mock.Anything).Return(nil)
 	api.On("GetUser", mock.Anything).Return(&model.User{
-		Id:       "userid",
-		Nickname: "User",
+		Id:        "userid",
+		Nickname:  "User",
+		Username:  "hunter2",
+		FirstName: "User",
+		LastName:  "McUserface",
 	}, (*model.AppError)(nil))
 
 	p := RollyPlugin{}
@@ -163,6 +166,15 @@ func TestHandleRoll(t *testing.T) {
 
 	response = p.HandleRoll("6!", "")
 	assert.EqualValues(t, response, "\"6!\" [6 1] = **7**")
+
+	response = p.HandleRoll("monkey", "")
+	assert.EqualValues(t, response, "I have no idea what to do with this: monkey")
+
+	response = p.HandleRoll("1", "")
+	assert.EqualValues(t, response, "Your one-sided die rolls off into the shadows.")
+
+	response = p.HandleRoll("1d1", "")
+	assert.EqualValues(t, response, "Your one-sided die rolls off into the shadows.")
 }
 
 // TestRollDice - Make sure different combinations return correct values.
@@ -254,6 +266,16 @@ func TestGetRandom(t *testing.T) {
 	val = p.GetRandom(6)
 	assert.True(t, val >= 1 && val <= 6)
 	assert.EqualValues(t, val, 1)
+}
+
+// TestGetName - Make sure GetName() does something suitable.
+func TestGetName(t *testing.T) {
+	p := initTestPlugin(t)
+
+	// TODO: How to mock this better so we can test users with missing fields?
+	name, err := p.GetName("userid")
+	assert.Nil(t, err)
+	assert.EqualValues(t, name, "User")
 }
 
 // -----------------------------------------------------------------------------

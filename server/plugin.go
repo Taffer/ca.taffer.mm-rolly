@@ -105,13 +105,13 @@ func (p *RollyPlugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs)
 		return p.GetHelp()
 	}
 
-	// Get the user to we can display the right name
-	user, userErr := p.API.GetUser(args.UserId)
+	// Get the user to we can display the right name.
+	userName, userErr := p.GetName(args.UserId)
 	if userErr != nil {
 		return nil, userErr
 	}
 
-	responseText := fmt.Sprintf("%s throws the dice…", user.Nickname)
+	responseText := fmt.Sprintf("%s throws the dice…", userName)
 
 	rolls := strings.Fields(args.Command)[1:]
 	if len(rolls) > 10 {
@@ -123,8 +123,9 @@ func (p *RollyPlugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs)
 	if len(rolls) == 0 {
 		responseText += fmt.Sprintf("\n🚫 That accomplished nothing.")
 	} else {
-		rollText := "🎲 "
+		rollText := ""
 		for idx := 0; idx < len(rolls); idx++ {
+			rollText += "\n🎲 "
 			rollText = p.HandleRoll(rolls[idx], rollText)
 		}
 
@@ -203,12 +204,16 @@ func (p *RollyPlugin) HandleRoll(rollArg string, rollText string) string {
 		// Simple roll (number only).
 		matches := FindNamedSubstrings(p.simplePattern, rollArg)
 
-		dice, total := p.RollDice(1, matches["num_sides"], "", 0)
-
-		if len(dice) == 1 {
-			rollText += fmt.Sprintf("\"1d%v\" = **%d**", rollArg, total)
+		if matches["num_sides"] == "1" {
+			rollText += "Your one-sided die rolls off into the shadows."
 		} else {
-			rollText += fmt.Sprintf("%q %v = **%d**", rollArg, dice, total)
+			dice, total := p.RollDice(1, matches["num_sides"], "", 0)
+
+			if len(dice) == 1 {
+				rollText += fmt.Sprintf("\"1d%v\" = **%d**", rollArg, total)
+			} else {
+				rollText += fmt.Sprintf("%q %v = **%d**", rollArg, dice, total)
+			}
 		}
 
 	} else if p.comboPattern.MatchString(rollArg) == true {
@@ -268,21 +273,25 @@ func (p *RollyPlugin) HandleRoll(rollArg string, rollText string) string {
 			numDice = 1
 		}
 		sides := matches["num_sides"] // Left as string for d% rolls.
-		modifier := matches["modifier"]
-		modifierValue, err := strconv.Atoi(matches["modifier_value"])
-		if err != nil {
-			modifierValue = 0 // One wasn't specified. Blame the ! modifier.
-		}
-
-		dice, total := p.RollDice(numDice, sides, modifier, modifierValue)
-
-		if len(dice) == 1 {
-			rollText += fmt.Sprintf("%q = **%d**", rollArg, total)
+		if sides == "1" {
+			rollText += "Your one-sided die rolls off into the shadows."
 		} else {
-			rollText += fmt.Sprintf("%q %v = **%d**", rollArg, dice, total)
+			modifier := matches["modifier"]
+			modifierValue, err := strconv.Atoi(matches["modifier_value"])
+			if err != nil {
+				modifierValue = 0 // One wasn't specified. Blame the ! modifier.
+			}
+
+			dice, total := p.RollDice(numDice, sides, modifier, modifierValue)
+
+			if len(dice) == 1 {
+				rollText += fmt.Sprintf("%q = **%d**", rollArg, total)
+			} else {
+				rollText += fmt.Sprintf("%q %v = **%d**", rollArg, dice, total)
+			}
 		}
 	} else {
-		rollText += fmt.Sprintf("I have no idea what to do with %q.", rollArg)
+		rollText += fmt.Sprintf("I have no idea what to do with this: %v", rollArg)
 	}
 
 	return rollText
@@ -313,6 +322,25 @@ func (p *RollyPlugin) GetCommand() *model.Command {
 		AutoCompleteHint: "6 d10 2d4+2 and other modifiers.",
 		IconURL:          iconURI,
 	}
+}
+
+// GetName - What should we call the user?
+func (p *RollyPlugin) GetName(userID string) (string, *model.AppError) {
+	user, userErr := p.API.GetUser(userID)
+	if userErr != nil {
+		return "Error McErrorface", userErr
+	}
+
+	name := user.Nickname
+	if len(name) < 1 {
+		name = user.Username
+
+		if len(name) < 1 {
+			name = user.FirstName + " " + user.LastName
+		}
+	}
+
+	return name, nil
 }
 
 // Is there already a way to do this?
