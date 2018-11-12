@@ -123,8 +123,9 @@ func (p *RollyPlugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs)
 	if len(rolls) == 0 {
 		responseText += fmt.Sprintf("\n🚫 That accomplished nothing.")
 	} else {
-		rollText := "🎲 "
+		rollText := ""
 		for idx := 0; idx < len(rolls); idx++ {
+			rollText += "\n🎲 "
 			rollText = p.HandleRoll(rolls[idx], rollText)
 		}
 
