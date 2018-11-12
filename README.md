@@ -10,7 +10,7 @@ and [DiceBot](https://dice-b.appspot.com/) for Slack.
 
 Note that I don't actually know Go, so this could be rough...
 
-## Goals
+## Rolling Dice
 
 Support "any" [reasonable](https://en.wikipedia.org/wiki/Dice_notation) dice
 rolling request:
@@ -30,14 +30,6 @@ rolling request:
 If *x* isn't specified, it defaults to 1. If *y* is less than 2, it defaults
 to 2. If you specify a modifier, you must also specify a *z* value.
 
-**Maybe the "open" combo should be a modifier.**
-
-Variations not supported yet:
-
-* > modifier to return the highest rolls; 4d6<1 is the same as 4d6>3
-* dF for FUDGE dice (-1, 0, 1, aka 1d3-2)
-* ! modifier to "explode" (roll and add whenever you get the max die value)
-
 Nerd combos:
 
 * dnd - same as 3d6 six times (standard D&D or Pathfinder)
@@ -49,33 +41,6 @@ the channel with dice output.
 
 Number of rolls per request (`/roll 1d6 2d6 ... n`) will be limited to 10 so
 malicious users can't flood the channel with dice output.
-
-## Output Format
-
-```
-@someuser rolls dnd+:
-
-5, 3, 5, 6 = **16**
-4, 3, 6, 2 = **13**
-3, 1, 3, 4 = **10**
-1, 2, 5, 4 = **11**
-1, 2, 1, 6 = **9**
-5, 5, 3, 2 = **13**
-```
-
-```
-@someuser rolls 1d%: **95**
-```
-
-```
-@someuser rolls 1d4 1d6 1d8 1d10 1d12 1d20: **3 1 3 6 19**
-```
-
-```
-@someuser rolls 1d100 3d6: **11 12**
-
-2, 5, 5 = **12**
-```
 
 ## Credits
 
