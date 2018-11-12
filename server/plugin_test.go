@@ -169,6 +169,12 @@ func TestHandleRoll(t *testing.T) {
 
 	response = p.HandleRoll("monkey", "")
 	assert.EqualValues(t, response, "I have no idea what to do with this: monkey")
+
+	response = p.HandleRoll("1", "")
+	assert.EqualValues(t, response, "Your one-sided die rolls off into the shadows.")
+
+	response = p.HandleRoll("1d1", "")
+	assert.EqualValues(t, response, "Your one-sided die rolls off into the shadows.")
 }
 
 // TestRollDice - Make sure different combinations return correct values.

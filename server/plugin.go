@@ -204,12 +204,16 @@ func (p *RollyPlugin) HandleRoll(rollArg string, rollText string) string {
 		// Simple roll (number only).
 		matches := FindNamedSubstrings(p.simplePattern, rollArg)
 
-		dice, total := p.RollDice(1, matches["num_sides"], "", 0)
-
-		if len(dice) == 1 {
-			rollText += fmt.Sprintf("\"1d%v\" = **%d**", rollArg, total)
+		if matches["num_sides"] == "1" {
+			rollText += "Your one-sided die rolls off into the shadows."
 		} else {
-			rollText += fmt.Sprintf("%q %v = **%d**", rollArg, dice, total)
+			dice, total := p.RollDice(1, matches["num_sides"], "", 0)
+
+			if len(dice) == 1 {
+				rollText += fmt.Sprintf("\"1d%v\" = **%d**", rollArg, total)
+			} else {
+				rollText += fmt.Sprintf("%q %v = **%d**", rollArg, dice, total)
+			}
 		}
 
 	} else if p.comboPattern.MatchString(rollArg) == true {
@@ -269,18 +273,22 @@ func (p *RollyPlugin) HandleRoll(rollArg string, rollText string) string {
 			numDice = 1
 		}
 		sides := matches["num_sides"] // Left as string for d% rolls.
-		modifier := matches["modifier"]
-		modifierValue, err := strconv.Atoi(matches["modifier_value"])
-		if err != nil {
-			modifierValue = 0 // One wasn't specified. Blame the ! modifier.
-		}
-
-		dice, total := p.RollDice(numDice, sides, modifier, modifierValue)
-
-		if len(dice) == 1 {
-			rollText += fmt.Sprintf("%q = **%d**", rollArg, total)
+		if sides == "1" {
+			rollText += "Your one-sided die rolls off into the shadows."
 		} else {
-			rollText += fmt.Sprintf("%q %v = **%d**", rollArg, dice, total)
+			modifier := matches["modifier"]
+			modifierValue, err := strconv.Atoi(matches["modifier_value"])
+			if err != nil {
+				modifierValue = 0 // One wasn't specified. Blame the ! modifier.
+			}
+
+			dice, total := p.RollDice(numDice, sides, modifier, modifierValue)
+
+			if len(dice) == 1 {
+				rollText += fmt.Sprintf("%q = **%d**", rollArg, total)
+			} else {
+				rollText += fmt.Sprintf("%q %v = **%d**", rollArg, dice, total)
+			}
 		}
 	} else {
 		rollText += fmt.Sprintf("I have no idea what to do with this: %v", rollArg)
