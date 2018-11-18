@@ -1,4 +1,4 @@
-# ca.taffer.mm-rolly
+# Rolly
 
 Dice rolling plugin for Mattermost.
 
@@ -43,6 +43,10 @@ the channel with dice output.
 
 Number of rolls per request (`/roll 1d6 2d6 ... n`) will be limited to 10 so
 malicious users can't flood the channel with dice output.
+
+### Changes Since 1.0
+
+* Cosmetic changes to the output.
 
 ## Credits
 
