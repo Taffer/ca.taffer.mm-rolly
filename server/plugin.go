@@ -40,6 +40,7 @@ const (
 	iconFile   string = "if_die_1055072.png"
 	iconPath   string = pluginPath + "/" + iconFile
 	iconURI    string = "/" + iconPath
+	repoURI    string = "https://github.com/Taffer/ca.taffer.mm-rolly"
 
 	trigger    string = "roll"
 	pluginName string = "Rolly"
@@ -131,16 +132,20 @@ func (p *RollyPlugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs)
 
 		attachments = []*model.SlackAttachment{
 			{
-				Text:     rollText,
-				Fallback: "🎲",
-				ThumbURL: iconURI,
+				Text:       rollText,
+				Color:      "#76C2AF",
+				Fallback:   "🎲",
+				ThumbURL:   iconURI,
+				AuthorName: pluginName,
+				AuthorIcon: iconURI,
+				AuthorLink: repoURI,
 			},
 		}
 	}
 
 	props := map[string]interface{}{
 		"from_webhook":  "true",
-		"use_user_icon": "true",
+		"use_user_icon": "false", // I thought setting this to false would make it use iconURI, but no?
 	}
 
 	return &model.CommandResponse{
