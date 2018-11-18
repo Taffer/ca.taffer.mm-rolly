@@ -36,6 +36,8 @@ Nerd combos:
 * dnd+ - same as 4d6<1 six times (common house rule for D&D or Pathfinder)
 * open - roll d%, if it's >= 95, roll again and add, repeating if necessary
 
+![Rolly's dnd+ combo](rolly-screenshot.png)
+
 Number of dice per roll will be limited to 100 so malicious users can't flood
 the channel with dice output.
 
