@@ -5,5 +5,5 @@ var manifest = struct {
 	Version string
 }{
 	Id:      "ca.taffer.mm-rolly",
-	Version: "1.0.0",
+	Version: "1.1",
 }
